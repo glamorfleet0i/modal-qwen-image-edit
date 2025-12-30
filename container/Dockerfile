@@ -51,6 +51,10 @@ RUN chmod +x /root/comfy/start.sh
 COPY boot.sh /root/comfy/boot.sh
 RUN chmod +x /root/comfy/boot.sh
 
+# Add load_init_files.sh
+COPY load_init_files.sh /root/comfy/load_init_files.sh
+RUN chmod +x /root/comfy/load_init_files.sh
+
 # Expose ports
 EXPOSE 8000
 EXPOSE 48213

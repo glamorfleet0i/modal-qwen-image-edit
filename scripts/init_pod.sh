@@ -1,0 +1,33 @@
+#!/bin/bash
+
+read -p "This will permanently remove existing files on the remote server (root@${1}:${2}) and replace them with the local files in ./init_files. Are you sure? Type Y or y to continue: " -n 1 -r
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 1
+fi
+
+TS=$(date +%s)
+INIT_FILES_ZIP="init_files_$TS.zip"
+
+# 1. Zip the init_files directory and append the current unix timestamp
+zip -r $INIT_FILES_ZIP ./init_files
+
+# 2. Read IP and port of server from command line, or if missing, from $SERVER_IP and $SERVER_PORT environment variables
+IP=$1
+PORT=$2
+if [ -z "$IP" ] || [ -z "$PORT" ]; then
+    IP=$SERVER_IP
+    PORT=$SERVER_PORT
+fi
+
+# 2. SFTP into server as root and upload the zipped init_files directory to a temporary location
+sftp -P $PORT root@$IP <<EOF
+put -r $INIT_FILES_ZIP /tmp/
+EOF
+
+# 3. SSH into server as root and run /root/comfy/load_init_files.sh
+ssh -p $PORT root@$IP "bash /root/comfy/load_init_files.sh /tmp/$INIT_FILES_ZIP"
+
+# 4. Delete the local zipped init_files directory
+rm $INIT_FILES_ZIP
+
+echo "Init files uploaded and loaded successfully."

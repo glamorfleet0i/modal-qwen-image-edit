@@ -1,5 +1,6 @@
-.venv/
-out/
-upscale/output/
 __pycache__/
-init_files/
+.venv/
+modal-downloader/out/
+upscale/output/
+scripts/init_files
+*.pth
