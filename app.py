@@ -15,7 +15,14 @@ image = (  # build up a Modal Image to run ComfyUI, step by step
     .uv_pip_install("fastapi[standard]==0.115.4")  # install web dependencies
     .uv_pip_install("comfy-cli==1.5.3")  # install comfy-cli
     .run_commands(  # use comfy-cli to install ComfyUI and its dependencies
-        "comfy --skip-prompt install --fast-deps --nvidia"
+        "comfy --skip-prompt install --fast-deps --nvidia "
+    )
+)
+
+image = (
+    image.run_commands( 
+        "comfy node install --fast-deps login",
+        # "comfy node install --fast-deps ComfyUI-Crystools"
     )
 )
 
@@ -29,20 +36,40 @@ def hf_download():
             "filename": "split_files/vae/qwen_image_vae.safetensors",
             "dest": "/root/comfy/ComfyUI/models/vae/qwen_image_vae.safetensors",
         },
-        "qwen_edit": {
+        "qwen_image_edit_2509_fp8": {
             "repo_id": "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-            "filename": "split_files/diffusion_models/qwen_image_edit_fp8_e4m3fn.safetensors",
-            "dest": "/root/comfy/ComfyUI/models/checkpoints/qwen_image_edit_fp8_e4m3fn.safetensors",
+            "filename": "split_files/diffusion_models/qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/diffusion_models/qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+        },
+        "qwen_image_edit_2509_fp8_scaled": {
+            "repo_id": "lightx2v/Qwen-Image-Lightning",
+            "filename": "Qwen-Image-Edit-2509/qwen_image_edit_2509_fp8_e4m3fn_scaled.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/diffusion_models/qwen_image_edit_2509_fp8_e4m3fn_scaled.safetensors",
         },
         "text_encoder": {
             "repo_id": "Comfy-Org/Qwen-Image_ComfyUI",
             "filename": "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
-            "dest": "/root/comfy/ComfyUI/models/clip/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
         },
-        "lightning": {
+        "lightning_2509_4step": {
             "repo_id": "lightx2v/Qwen-Image-Lightning",
-            "filename": "Qwen-Image-Lightning-4steps-V1.0.safetensors",
-            "dest": "/root/comfy/ComfyUI/models/checkpoints/Qwen-Image-Lightning-4steps-V1.0.safetensors",
+            "filename": "Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/loras/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+        },
+        "lightning_2509_8step": {
+            "repo_id": "lightx2v/Qwen-Image-Lightning",
+            "filename": "Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/loras/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors",
+        },
+        "qwen_image_edit_2511_fused_4step": {
+            "repo_id": "lightx2v/Qwen-Image-Edit-2511-Lightning",
+            "filename": "qwen_image_edit_2511_fp8_e4m3fn_scaled_lightning_comfyui.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/diffusion_models/qwen_image_edit_2511_fp8_e4m3fn_scaled_lightning_comfyui.safetensors",
+        },
+        "snofs": {
+            "repo_id": "glamorfleet/pub-models",
+            "filename": "40d031c3-a791-4159-a2b2-9ed2b3164c70.safetensors",
+            "dest": "/root/comfy/ComfyUI/models/loras/Qwen_Snofs_1_3.safetensors"
         }
     }
 
@@ -62,8 +89,59 @@ def hf_download():
             check=True,
         )
 
+def symlink_user_data():
+    import os
+    import shutil
 
-vol = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
+    # These are the directories we want to persist between runs.
+    # The key is the directory within the ComfyUI installation.
+    # The value is the corresponding directory in our persistent volume.
+    linked_dirs_map = {
+        "/root/comfy/ComfyUI/user": "/persisted-user-data/user",
+        "/root/comfy/ComfyUI/input": "/persisted-user-data/input",
+        "/root/comfy/ComfyUI/output": "/persisted-user-data/output",
+        "/root/comfy/ComfyUI/login": "/persisted-user-data/login",
+    }
+
+    for link_name, target in linked_dirs_map.items():
+        print(f"Symlinking {link_name} -> {target}")
+
+        # If the original path is a directory, handle it as such.
+        if os.path.isdir(link_name) and not os.path.islink(link_name):
+            print(f"{link_name} is a directory. Applying directory symlink logic.")
+            os.makedirs(target, exist_ok=True) # Ensure target directory exists.
+
+            # Only copy contents if the target directory is empty.
+            if not os.listdir(target):
+                print(f"Target {target} is empty. Moving contents from {link_name}.")
+                shutil.copytree(link_name, target, dirs_exist_ok=True)
+            else:
+                print(f"Target {target} has content. Skipping copy.")
+
+            shutil.rmtree(link_name)
+            os.symlink(target, link_name)
+
+        # If the original path is a file, handle it.
+        elif os.path.isfile(link_name) and not os.path.islink(link_name):
+            print(f"{link_name} is a file. Applying file symlink logic.")
+            os.makedirs(os.path.dirname(target), exist_ok=True) # Ensure parent of target file exists.
+
+            # Only copy the file if the target doesn't already exist.
+            if not os.path.exists(target):
+                print(f"Target {target} does not exist. Copying from {link_name}.")
+                shutil.copy2(link_name, target)
+            else:
+                print(f"Target {target} already exists. Skipping copy.")
+
+            os.remove(link_name)
+            os.symlink(target, link_name)
+
+        elif not os.path.exists(link_name) and not os.path.islink(link_name):
+            print(f"Warning: {link_name} does not exist, but creating symlink to {target}.")
+            os.symlink(target, link_name)
+
+vol_model_cache = modal.Volume.from_name("hf-hub-cache", create_if_missing=True)
+vol_user_data = modal.Volume.from_name("user-data", create_if_missing=True)
 
 image = (
     # install huggingface_hub with hf_xet support to speed up downloads
@@ -72,21 +150,28 @@ image = (
     .run_function(
         hf_download,
         # persist the HF cache to a Modal Volume so future runs don't re-download models
-        volumes={"/cache": vol},
+        volumes={"/cache": vol_model_cache},
+    )
+    .run_function(
+        symlink_user_data,
+        # persist user data written to the transient boot disk
+        volumes={"/persisted-user-data": vol_user_data},
     )
 )
 
-app = modal.App(name="example-comfyapp", image=image)
+app = modal.App(name="comfyui-qwen-image-edit", image=image)
 
 
 @app.function(
     max_containers=1,  # limit interactive session to 1 container
-    # gpu="L40S",  # good starter GPU for inference
-    volumes={"/cache": vol},  # mounts our cached models
+    gpu="L40S",
+    volumes={"/cache": vol_model_cache, "/persisted-user-data": vol_user_data},
+    # enable_memory_snapshot=True,
+    # experimental_options={"enable_gpu_snapshot": True}
 )
 @modal.concurrent(
     max_inputs=10
 )  # required for UI startup process which runs several API calls concurrently
 @modal.web_server(8000, startup_timeout=60)
 def ui():
-    subprocess.Popen("comfy launch -- --listen 0.0.0.0 --port 8000", shell=True)
+    subprocess.Popen("comfy launch -- --listen 0.0.0.0 --port 8000 --preview-method latent2rgb", shell=True)
