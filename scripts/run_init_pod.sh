@@ -8,8 +8,11 @@ fi
 TS=$(date +%s)
 INIT_FILES_ZIP="init_files_$TS.zip"
 
-# 1. Zip the init_files directory and append the current unix timestamp
-zip -r $INIT_FILES_ZIP ./init_files
+# 1. Zip the init_files/ComfyUI directory and append the current unix timestamp
+# The root should only have the ComfyUI directory
+cd ./init_files/ComfyUI
+zip -r ../../$INIT_FILES_ZIP .
+cd ../..
 
 # 2. Read IP and port of server from command line, or if missing, from $SERVER_IP and $SERVER_PORT environment variables
 IP=$1
