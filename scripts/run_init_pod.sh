@@ -22,6 +22,11 @@ if [ -z "$IP" ] || [ -z "$PORT" ]; then
     PORT=$SERVER_PORT
 fi
 
+if [ -z "$IP" ] || [ -z "$PORT" ]; then
+    echo "Error: IP or PORT not specified"
+    exit 1
+fi
+
 # 2. SFTP into server as root and upload the zipped init_files directory to a temporary location
 sftp -P $PORT root@$IP <<EOF
 put -r $INIT_FILES_ZIP /tmp/

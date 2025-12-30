@@ -1,8 +1,7 @@
 #!/bin/bash
 
-OUTPUT_ONLY=$1
-IP=$2
-PORT=$3
+IP=$1
+PORT=$2
 if [ -z "$IP" ] || [ -z "$PORT" ]; then
     IP=$SERVER_IP
     PORT=$SERVER_PORT
@@ -13,9 +12,4 @@ if [ -z "$IP" ] || [ -z "$PORT" ]; then
     exit 1
 fi
 
-server_dir="/"
-if [ "$OUTPUT_ONLY" = true ]; then
-    server_dir="/root/comfy/ComfyUI/output"
-fi
-
-sshfs -p $PORT root@$IP:$server_dir ~/mnt/quickpod
+ssh -p $PORT root@$IP

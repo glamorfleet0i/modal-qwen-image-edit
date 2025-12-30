@@ -14,6 +14,11 @@ if [ -z "$IP" ] || [ -z "$PORT" ]; then
     PORT=$SERVER_PORT
 fi
 
+if [ -z "$IP" ] || [ -z "$PORT" ]; then
+    echo "Error: IP or PORT not specified"
+    exit 1
+fi
+
 # SSH into the remote server and create a zip archive to /root/comfy/export/ComfyUI_$TS.zip
 # - /root/comfy/ComfyUI/input
 # - /root/comfy/ComfyUI/login

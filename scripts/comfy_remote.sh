@@ -9,6 +9,11 @@ if [ -z "$IP" ] || [ -z "$PORT" ]; then
     PORT=$SERVER_PORT
 fi
 
+if [ -z "$IP" ] || [ -z "$PORT" ]; then
+    echo "Error: IP or PORT not specified"
+    exit 1
+fi
+
 # 2. Connect to the remote server and start/attach to tmux session
 # We pass the command as an argument to ssh (instead of heredoc) to allow -t to allocate a TTY for tmux
 CMD="
