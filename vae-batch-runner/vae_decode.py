@@ -68,6 +68,10 @@ from nodes import NODE_CLASS_MAPPINGS
 import os
 import uuid
 import shutil
+from pathlib import Path
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
+from safetensors import safe_open
 
 OUTPUT_DIR="/home/kevin/AI/ComfyUI/output"
 LATENTS_DIR="/latents/test"
@@ -129,6 +133,17 @@ def main():
                     print(f'Image name not found', end=" ")
                 
                 print(f'-> `{out_file}`')
+
+                # Copy latent metadata to output image
+                with safe_open(latent, framework="pt", device="cpu") as f:
+                    latent_metadata = f.metadata()
+                if latent_metadata is not None:
+                    real_out_file_renamed_path = Path(out_file_renamed_path)
+                    image = Image.open(real_out_file_renamed_path)
+                    img_metadata = PngInfo()
+                    for x in latent_metadata:
+                        img_metadata.add_text(x, latent_metadata[x])
+                    image.save(real_out_file_renamed_path, pnginfo=img_metadata)
                 
                 # Delete latent from input
                 os.remove(os.path.join(INPUT_DIR, latent_filename))
