@@ -74,7 +74,7 @@ from PIL.PngImagePlugin import PngInfo
 from safetensors import safe_open
 
 OUTPUT_DIR="/home/kevin/AI/ComfyUI/output"
-LATENTS_DIR="/latents/test"
+LATENTS_DIR="/latents"
 INPUT_DIR="/home/kevin/AI/ComfyUI/input"
 
 def main():
