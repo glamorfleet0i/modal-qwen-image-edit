@@ -1,0 +1,5 @@
+torch
+cryptography
+safetensors
+Pillow
+numpy

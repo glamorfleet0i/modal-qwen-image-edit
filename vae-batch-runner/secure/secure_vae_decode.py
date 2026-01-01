@@ -1,5 +1,5 @@
 OUTPUT_DIR="/home/kevin/AI/ComfyUI/output"
-LATENTS_DIR="/latents"
+LATENTS_DIR="/latents/test"
 INPUT_DIR="/home/kevin/AI/ComfyUI/input"
 
 from math import e
@@ -7,6 +7,30 @@ import os
 import sys
 from typing import Sequence, Mapping, Any, Union
 import torch
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import safetensors
+
+
+def is_kaggle():
+    return os.environ.get("KAGGLE_KERNEL_TYPE") is not None
+
+def is_colab():
+    return os.environ.get("COLAB_GPU") is not None
+
+
+if is_kaggle():
+    from kaggle_secrets import UserSecretsClient
+    user_secrets = UserSecretsClient()
+    TENSOR_ENC_KEY = user_secrets.get_secret("tensor_enc_key")
+elif is_colab():
+    from google.colab import runtime
+    TENSOR_ENC_KEY = runtime.get_secret("tensor_enc_key")
+else:
+    TENSOR_ENC_KEY = os.environ.get("TENSOR_ENC_KEY") if os.environ.get("TENSOR_ENC_KEY") is not None else ""
+
 
 def get_value_at_index(obj: Union[Sequence, Mapping], index: int) -> Any:
     """Returns the value at the given index of a sequence or mapping.
@@ -65,23 +89,46 @@ def add_comfyui_directory_to_sys_path() -> None:
         sys.path.append(comfyui_path)
         print(f"'{comfyui_path}' added to sys.path")
 
+def get_fernet_key_from_encoded_str(encoded_str: str) -> bytes:
+    '''
+    Derives a 32 byte key from an already salted secret string
+    The salt is the first 16 bytes of the string and the rest is the secret
+    '''
+    salt = encoded_str[:16]
+    secret = encoded_str[16:]
+    
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=1200000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(secret))
+
+
+def derive_key(secret: str, salt: bytes) -> bytes:
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=1200000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(secret.encode('utf-8')))
+
+
 add_comfyui_directory_to_sys_path()
 
 from nodes import NODE_CLASS_MAPPINGS
 import os
 import uuid
 import shutil
-from pathlib import Path
-from PIL import Image
-from PIL.PngImagePlugin import PngInfo
-from safetensors import safe_open
 
 def main():
     # Discover latents
     latents = []
     for root, dirs, files in os.walk(OUTPUT_DIR + LATENTS_DIR):
         for file in files:
-            if file.endswith(".latent") and "processed" not in root:
+            if file.endswith(".latent") and "__decode_processed" not in root:
                 latents.append(os.path.join(root, file))
     print('Found ' + str(len(latents)) + ' latents to decode.')
 
@@ -94,61 +141,45 @@ def main():
             try:
                 print(f'Decoding {idx + 1} of {len(latents)}: `{latent}`', end=" ")
 
-                orig_latent_filename_path_rel_to_output = latent.replace(OUTPUT_DIR + '/', "")
+                orig_latent_filename = latent.split('/')[-1]
+                # orig_latent_filename_path_rel_to_output = latent.replace(OUTPUT_DIR + '/', "")
 
-                # Move latent to inputs
-                latent_filename = f"vae_decode_{uuid.uuid4()}.latent"
+                # Make a temporary copy of latent to inputs
+                latent_filename = f"decode_{uuid.uuid4()}.latent"
                 shutil.copy(latent, os.path.join(INPUT_DIR, latent_filename))
 
-                # Load latent from input
+                # Load latent into memory
                 loadlatent = NODE_CLASS_MAPPINGS["LoadLatent"]()
                 loadlatent_2 = loadlatent.load(latent=latent_filename)
 
-                # Run VAE Decode
+                # Run VAE Decode on latent
                 vaedecode = NODE_CLASS_MAPPINGS["VAEDecode"]()
-                saveimage = NODE_CLASS_MAPPINGS["SaveImage"]()
-
                 vaedecode_3 = vaedecode.decode(
                     samples=get_value_at_index(loadlatent_2, 0),
                     vae=get_value_at_index(vaeloader_1, 0),
                 )
 
-                saveimage_4 = saveimage.save_images(
-                    filename_prefix=orig_latent_filename_path_rel_to_output,
-                    images=get_value_at_index(vaedecode_3, 0),
-                )
+                # Serialize latent tensor using safetensors
+                decoded_tensor: torch.Tensor = get_value_at_index(vaedecode_3, 0)
+                serialized_tensor = safetensors.torch.save({"dec": decoded_tensor.contiguous()})
 
-                try:
-                    # Rename file to replace .latent_00001_.png with .latent.png
-                    # Ex. ComfyUI_00001_.latent_00001_.png -> ComfyUI_00001_.latent.png
-                    out_file = saveimage_4['ui']['images'][0]['filename']
-                    out_file_path = OUTPUT_DIR + LATENTS_DIR + '/' + out_file
-                    out_file_renamed_path = out_file_path.replace('.latent_00001_.png', '.latent.png')
+                # Encrypt serialized tensor
+                salt = os.urandom(16)
+                key = derive_key(TENSOR_ENC_KEY, salt)
+                encrypted_tensor = Fernet(key).encrypt(serialized_tensor)
 
-                    # If the file already exists, leave it alone as duplicates are already enumerated
-                    if not os.path.exists(out_file_renamed_path):
-                        os.rename(out_file_path, out_file_renamed_path)
-                except Exception as e:
-                    out_file = 'unknown file'
-                    print(f'Image name not found', end=" ")
+                # Save encrypted tensor to original latent location, and append salt to filename
+                # Example: `original_latent_filename.latent.<salt in hex>.enc`
+                encrypted_tensor_filename = f"{orig_latent_filename}.{salt.hex()}.enc"
+                with open(os.path.join(os.path.dirname(latent), encrypted_tensor_filename), 'wb') as f:
+                    f.write(encrypted_tensor)
                 
-                print(f'-> `{out_file}`')
-
-                # Copy latent metadata to output image
-                with safe_open(latent, framework="pt", device="cpu") as f:
-                    latent_metadata = f.metadata()
-                if latent_metadata is not None:
-                    real_out_file_renamed_path = Path(out_file_renamed_path)
-                    image = Image.open(real_out_file_renamed_path)
-                    img_metadata = PngInfo()
-                    for x in latent_metadata:
-                        img_metadata.add_text(x, latent_metadata[x])
-                    image.save(real_out_file_renamed_path, pnginfo=img_metadata)
+                print(f'-> `{encrypted_tensor_filename}`')
                 
-                # Delete latent from input
+                # Delete temporary latent from input
                 os.remove(os.path.join(INPUT_DIR, latent_filename))
 
-                # Move processed latent
+                # Move original processed latent to ./__decode_processed
                 os.makedirs(os.path.join(os.path.dirname(latent), "__decode_processed"), exist_ok=True)
                 os.rename(latent, os.path.join(os.path.dirname(latent), "__decode_processed", os.path.basename(latent)))
             except Exception as e:
@@ -157,4 +188,7 @@ def main():
     print('VAE Decode finished.')
 
 if __name__ == "__main__":
+    # Testing only
+    os.environ["TENSOR_ENC_KEY"] = "my_test_secret"
+
     main()
