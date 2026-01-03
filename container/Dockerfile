@@ -5,59 +5,61 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_XET_HIGH_PERFORMANCE=1 \
     HF_HUB_ENABLE_HF_TRANSFER=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install required system dependencies for ComfyUI installation
+RUN apt-get update && apt-get full-upgrade -y && apt-get install -y --no-install-recommends \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    openssh-server \
+    tmux \
+    htop \
+    vim \
+    zip \
+    unzip
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
     "fastapi[standard]==0.115.4" \
     "comfy-cli==1.5.3" \
-    "huggingface-hub==0.36.0" \
-    "hf_transfer"
+    "huggingface_hub[cli]" \
+    "hf_transfer" \
+    "hf_xet"
 
-# Set working directory for ComfyUI installation
+# Install ComfyUI
 WORKDIR /root/comfy
-
-# Install ComfyUI and dependencies
-RUN comfy --skip-prompt install --fast-deps --nvidia
-
-# Install custom nodes
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git
+WORKDIR /root/comfy/ComfyUI
+RUN uv pip install -r requirements.txt --system --extra-index-url https://download.pytorch.org/whl/cu128
+# Manually install ComfyUI-Manager
+WORKDIR /root/comfy/ComfyUI/custom_nodes
+RUN git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
+WORKDIR /root/comfy/ComfyUI/custom_nodes/ComfyUI-Manager
+RUN uv pip install -r requirements.txt --system
+# Install SageAttention 2 Wheel
+COPY sageattention-2.2.0-cp312-cp312-linux_x86_64.whl /root/comfy
+RUN uv pip install /root/comfy/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl --system
+# Setup Comfy CLI
+WORKDIR /root/comfy/ComfyUI
+RUN comfy --skip-prompt set-default /root/comfy/ComfyUI
+RUN comfy tracking disable
 RUN comfy node install --fast-deps login
-
-# Add download models script
-COPY download_models.py /root/comfy/download_models.py
-
-# Update system and install openssh
-RUN apt-get update && apt-get full-upgrade -y && apt-get install openssh-server -y
 
 # Set up ssh access
 COPY init_ssh.sh /root/comfy/init_ssh.sh
 RUN chmod +x /root/comfy/init_ssh.sh && /root/comfy/init_ssh.sh
-
-# Copy sshd_config
 COPY sshd_config /etc/ssh/sshd_config
 RUN chmod 600 /etc/ssh/sshd_config
 
-# Install other items
-RUN apt-get install tmux htop vim zip -y
-
-# Add start script
+# Copy scripts
 COPY start.sh /root/comfy/start.sh
 RUN chmod +x /root/comfy/start.sh
-
-# Add boot script
 COPY boot.sh /root/comfy/boot.sh
 RUN chmod +x /root/comfy/boot.sh
-
-# Add load_init_files.sh
 COPY load_init_files.sh /root/comfy/load_init_files.sh
 RUN chmod +x /root/comfy/load_init_files.sh
+COPY download_models.py /root/comfy/download_models.py
 
 # Expose ports
 EXPOSE 8000
 EXPOSE 48213
 
-# Keep container alive
-CMD ["tail", "-f", "/dev/null"]
+# Run boot script
+ENTRYPOINT ["/root/comfy/boot.sh"]

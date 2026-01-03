@@ -7,13 +7,8 @@ if [ -d "./init_files/ComfyUI" ]; then
     mv ./init_files/ComfyUI ./init_files/ComfyUI_$TS
 fi
     
-IP=$1
-PORT=$2
-if [ -z "$IP" ] || [ -z "$PORT" ]; then
-    IP=$SERVER_IP
-    PORT=$SERVER_PORT
-fi
-
+IP=${1:-$IP}
+PORT=${2:-$PORT}
 if [ -z "$IP" ] || [ -z "$PORT" ]; then
     echo "Error: IP or PORT not specified"
     exit 1

@@ -1,21 +1,16 @@
 #!/bin/bash
 
-OUTPUT_ONLY=$1
-IP=$2
-PORT=$3
-if [ -z "$IP" ] || [ -z "$PORT" ]; then
-    IP=$SERVER_IP
-    PORT=$SERVER_PORT
-fi
-
+IP=${1:-$IP}
+PORT=${2:-$PORT}
 if [ -z "$IP" ] || [ -z "$PORT" ]; then
     echo "Error: IP or PORT not specified"
     exit 1
 fi
 
+OUTPUT_ONLY=${1:-false}
 server_dir="/"
 if [ "$OUTPUT_ONLY" = true ]; then
     server_dir="/root/comfy/ComfyUI/output"
 fi
 
-sshfs -p $PORT root@$IP:$server_dir ~/mnt/quickpod
+sshfs -o StrictHostKeyChecking=no -p $PORT root@$IP:$server_dir ~/mnt/quickpod

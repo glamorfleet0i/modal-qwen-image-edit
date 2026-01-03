@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Config
-IP=""
-PORT=""
+
+IP=24.124.32.70
+PORT=39002
 
 
 
@@ -13,11 +14,8 @@ PORT=""
 
 
 # If no values are set, use the environment variables IP and PORT
-if [ -z "$IP" ] || [ -z "$PORT" ]; then
-    IP=$SERVER_IP
-    PORT=$SERVER_PORT
-fi
-
+IP=${1:-$IP}
+PORT=${2:-$PORT}
 if [ -z "$IP" ] || [ -z "$PORT" ]; then
     echo "Error: IP or PORT not specified"
     exit 1
@@ -30,4 +28,4 @@ fi
 ./comfy_remote.sh $IP $PORT
 
 # 3. Mount pod
-./run_mount_pod.sh true $IP $PORT
+# ./mount_pod.sh true $IP $PORT

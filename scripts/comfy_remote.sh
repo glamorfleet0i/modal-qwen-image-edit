@@ -1,13 +1,8 @@
 #!/bin/bash
 
 
-# 1. Read IP and port of server from command line
-IP=$1
-PORT=$2
-if [ -z "$IP" ] || [ -z "$PORT" ]; then
-    IP=$SERVER_IP
-    PORT=$SERVER_PORT
-fi
+IP=${1:-$IP}
+PORT=${2:-$PORT}
 
 if [ -z "$IP" ] || [ -z "$PORT" ]; then
     echo "Error: IP or PORT not specified"
@@ -27,5 +22,5 @@ else
 fi
 "
 
-ssh -p $PORT -t root@$IP "$CMD"
+ssh -o StrictHostKeyChecking=no -p $PORT -t root@$IP "$CMD"
 
