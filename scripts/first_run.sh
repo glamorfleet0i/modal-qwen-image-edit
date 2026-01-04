@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# Config
-
-IP=24.124.32.70
-PORT=39002
-
-
-
-
-
-
-
-
-
 # If no values are set, use the environment variables IP and PORT
 IP=${1:-$IP}
 PORT=${2:-$PORT}

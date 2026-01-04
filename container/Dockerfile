@@ -23,11 +23,13 @@ RUN pip install --no-cache-dir \
     "hf_transfer" \
     "hf_xet"
 
+RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cu128
+
 # Install ComfyUI
 WORKDIR /root/comfy
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git
 WORKDIR /root/comfy/ComfyUI
-RUN uv pip install -r requirements.txt --system --extra-index-url https://download.pytorch.org/whl/cu128
+RUN uv pip install -r requirements.txt --system
 # Manually install ComfyUI-Manager
 WORKDIR /root/comfy/ComfyUI/custom_nodes
 RUN git clone https://github.com/Comfy-Org/ComfyUI-Manager.git
@@ -41,6 +43,9 @@ WORKDIR /root/comfy/ComfyUI
 RUN comfy --skip-prompt set-default /root/comfy/ComfyUI
 RUN comfy tracking disable
 RUN comfy node install --fast-deps login
+
+# Remove placeholder output file
+RUN rm /root/comfy/ComfyUI/output/_output_images_will_be_put_here
 
 # Set up ssh access
 COPY init_ssh.sh /root/comfy/init_ssh.sh
