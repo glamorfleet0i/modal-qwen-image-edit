@@ -8,12 +8,18 @@ if [ ! -f /root/comfy/setup_complete ]; then
     echo "$SSH_PUB_KEY" >> ~/.ssh/authorized_keys
     chmod 600 ~/.ssh/authorized_keys
     echo "[Added user SSH public key to authorized_keys.]"
-    service ssh restart
   fi
 
   python /root/comfy/download_models.py
 
   touch /root/comfy/setup_complete
+fi
+
+service ssh restart
+
+# If /root/comfy/init_files_completed exists, auto start ComfyUI
+if [ -f /root/comfy/init_files_completed ]; then
+  /root/comfy/start.sh
 fi
 
 # Wait forever to keep container alive

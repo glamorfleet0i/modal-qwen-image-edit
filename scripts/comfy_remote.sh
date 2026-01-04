@@ -17,7 +17,7 @@ if tmux has-session -t comfyui 2>/dev/null; then
     tmux attach -t comfyui
 else
     echo 'Starting new ComfyUI session...'
-    tmux new-session -d -s comfyui 'bash -lc \"/root/comfy/start.sh\"'
+    /root/comfy/start.sh
     tmux attach -t comfyui
 fi
 "

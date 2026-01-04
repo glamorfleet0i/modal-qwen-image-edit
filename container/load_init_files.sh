@@ -32,7 +32,9 @@ rm $INIT_FILES_ZIP
 if tmux has-session -t comfyui 2>/dev/null; then
     echo 'Restarting ComfyUI...'
     tmux kill-session -t comfyui
-    tmux new-session -d -s comfyui 'bash -lc "/root/comfy/start.sh"'
+    /root/comfy/start.sh
 fi
+
+touch /root/comfy/init_files_completed
 
 echo 'Init files loaded successfully on server.'
