@@ -1,12 +1,9 @@
 # !/bin/bash
 
-# Activate the venv from ~/.venv
+volume_name="user-data"
+remote_path="/output"
+local_dest="/home/kevin/Projects/modal/comfyui-qwen-image-edit/modal-downloader/out/$(date +%Y-%m-%d_%H-%M-%S)"
+
 source ~/.venv/bin/activate
-
-# If the output directory already exists, rename it to 'output_timestamp' where timestamp is the current timestamp
-if [ -d "./output" ]; then
-    mv ./output ./output_$(date +%s)
-fi
-
-# Download the output from the user-data volume
-modal volume get user-data /output/12-29-2025
+mkdir -p $local_dest
+modal volume get $volume_name $remote_path $local_dest
