@@ -44,6 +44,9 @@ RUN comfy --skip-prompt set-default /root/comfy/ComfyUI
 RUN comfy tracking disable
 RUN comfy node install --fast-deps login
 
+# Install build essential (required for SageAttention 2)
+RUN apt-get install -y build-essential
+
 # Remove placeholder output file
 RUN rm /root/comfy/ComfyUI/output/_output_images_will_be_put_here
 
