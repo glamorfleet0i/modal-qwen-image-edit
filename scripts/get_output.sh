@@ -15,11 +15,11 @@ zip_file_name="ComfyUI_output_$cur_time.zip"
 
 # Move /root/comfy/ComfyUI/output to /root/comfy/output_archive/$cur_time and zip it
 commands="
-mkdir -p $output_archive_dir/$cur_time
-mv /root/comfy/ComfyUI/output $output_archive_dir/$cur_time
-cd $output_archive_dir/$cur_time/output
-zip -r $zip_file_name .
-mkdir -p $export_dir
+mkdir -p $output_archive_dir/$cur_time &&
+mv /root/comfy/ComfyUI/output $output_archive_dir/$cur_time &&
+cd $output_archive_dir/$cur_time/output &&
+zip -r $zip_file_name . &&
+mkdir -p $export_dir &&
 mv $output_archive_dir/$cur_time/output/$zip_file_name $export_dir
 "
 ssh -o StrictHostKeyChecking=no -p $PORT root@$IP $commands
