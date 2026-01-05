@@ -18,7 +18,7 @@ commands="
 mkdir -p $output_archive_dir/$cur_time &&
 mv /root/comfy/ComfyUI/output $output_archive_dir/$cur_time &&
 cd $output_archive_dir/$cur_time/output &&
-zip -r $zip_file_name . &&
+zip -0 -r $zip_file_name . &&
 mkdir -p $export_dir &&
 mv $output_archive_dir/$cur_time/output/$zip_file_name $export_dir
 "
