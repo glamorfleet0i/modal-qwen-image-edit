@@ -63,7 +63,7 @@ COPY boot.sh /root/comfy/boot.sh
 RUN chmod +x /root/comfy/boot.sh
 COPY load_init_files.sh /root/comfy/load_init_files.sh
 RUN chmod +x /root/comfy/load_init_files.sh
-COPY download_models.py /root/comfy/download_models.py
+COPY check_download_models.py /root/comfy/check_download_models.py
 
 # Expose ports
 EXPOSE 8000

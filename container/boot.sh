@@ -10,16 +10,16 @@ if [ ! -f /root/comfy/setup_complete ]; then
     echo "[Added user SSH public key to authorized_keys.]"
   fi
 
-  python /root/comfy/download_models.py
-
   touch /root/comfy/setup_complete
 fi
 
 service ssh restart
 
+tmux new-session -d -s model_downloader "python /root/comfy/check_download_models.py"
+
 # If /root/comfy/init_files_completed exists, auto start ComfyUI
 if [ -f /root/comfy/init_files_completed ]; then
-  /root/comfy/start.sh
+  /root/comfy/start.sh &
 fi
 
 # Wait forever to keep container alive
